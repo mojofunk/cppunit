@@ -32,9 +32,12 @@ test-driver
 *.tar.*
 *.trs
 _configs.sed
+*.pyc
+*.lock-waf*
 
 examples/cppunittest/cppunittestmain
 examples/hierarchy/hierarchy
 examples/money/MoneyApp
 src/DllPlugInTester/DllPlugInTesterTest
 build/
+waf-build/
