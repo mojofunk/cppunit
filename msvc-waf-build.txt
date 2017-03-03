@@ -1,0 +1,8 @@
+# necessary order for successful shared build, static must be built first
+
+ ./waf configure --prefix='C:/' --toolset msvc --enable-static
+ ./waf build
+ ./waf configure --prefix='C:/' --toolset msvc --enable-shared
+ ./waf build
+ ./waf install --destdir=./tmp
+
