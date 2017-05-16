@@ -69,6 +69,9 @@ def options(opt):
                    help='specify the log level (default: 1)')
     opt.add_option('--cpplint-break', default=5, type='int', dest='CPPLINT_BREAK',
                    help='break the build if error >= level (default: 5)')
+    opt.add_option('--cpplint-root', type='string',
+                   default=None, dest='CPPLINT_ROOT',
+                   help='root directory used to derive header guard')
     opt.add_option('--cpplint-skip', action='store_true',
                    default=False, dest='CPPLINT_SKIP',
                    help='skip cpplint during build')
@@ -184,6 +187,7 @@ class cpplint(Task.Task):
                 cpplint_tool._cpplint_state.output_format = self.env.CPPLINT_OUTPUT
             cpplint_tool._cpplint_state.SetFilters(self.env.CPPLINT_FILTERS)
             cpplint_tool._line_length = self.env.CPPLINT_LINE_LENGTH
+            cpplint_tool._root = self.env.CPPLINT_ROOT
             cpplint_tool.ProcessFile(self.inputs[0].abspath(), self.env.CPPLINT_LEVEL)
         return critical_errors
 
@@ -194,15 +198,15 @@ def cpplint_includes(self, node):
 @TaskGen.feature('cpplint')
 @TaskGen.before_method('process_source')
 def post_cpplint(self):
-    if self.env.CPPLINT_SKIP:
-        return
-
     if not self.env.CPPLINT_INITIALIZED:
         for key, value in Options.options.__dict__.items():
             if not key.startswith('CPPLINT_') or self.env[key]:
                continue
             self.env[key] = value
         self.env.CPPLINT_INITIALIZED = True
+
+    if self.env.CPPLINT_SKIP:
+        return
 
     if not self.env.CPPLINT_OUTPUT in CPPLINT_RE:
         return
@@ -215,5 +219,4 @@ def post_cpplint(self):
         if not node:
             self.bld.fatal('Could not find %r' % src)
         self.create_task('cpplint', node)
-
 

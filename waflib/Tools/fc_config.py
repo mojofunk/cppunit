@@ -100,7 +100,7 @@ def fortran_modifier_darwin(conf):
 	v.LINKFLAGS_fcshlib = ['-dynamiclib']
 	v.fcshlib_PATTERN   = 'lib%s.dylib'
 	v.FRAMEWORKPATH_ST  = '-F%s'
-	v.FRAMEWORK_ST      = '-framework %s'
+	v.FRAMEWORK_ST      = ['-framework']
 
 	v.LINKFLAGS_fcstlib = []
 
@@ -456,7 +456,7 @@ def detect_openmp(self):
 	"""
 	Detects openmp flags and sets the OPENMP ``FCFLAGS``/``LINKFLAGS``
 	"""
-	for x in ('-fopenmp','-openmp','-mp','-xopenmp','-omp','-qsmp=omp'):
+	for x in ('-qopenmp', '-fopenmp','-openmp','-mp','-xopenmp','-omp','-qsmp=omp'):
 		try:
 			self.check_fc(
 				msg          = 'Checking for OpenMP flag %s' % x,

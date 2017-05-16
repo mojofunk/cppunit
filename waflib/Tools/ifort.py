@@ -85,8 +85,7 @@ def configure(conf):
 		v.MSVC_COMPILER = compiler
 		try:
 			v.MSVC_VERSION = float(version)
-		except Exception:
-			raise
+		except TypeError:
 			v.MSVC_VERSION = float(version[:-3])
 
 		conf.find_ifort_win32()
@@ -127,8 +126,10 @@ def gather_ifort_versions(conf, versions):
 			continue
 		targets = {}
 		for target,arch in all_ifort_platforms:
-			if target=='intel64': targetDir='EM64T_NATIVE'
-			else: targetDir=target
+			if target=='intel64':
+				targetDir='EM64T_NATIVE'
+			else:
+				targetDir=target
 			try:
 				Utils.winreg.OpenKey(all_versions,version+'\\'+targetDir)
 				icl_version=Utils.winreg.OpenKey(all_versions,version)
@@ -224,7 +225,7 @@ echo LIB=%%LIB%%;%%LIBPATH%%
 	compiler_name, linker_name, lib_name = _get_prog_names(conf, compiler)
 	fc = conf.find_program(compiler_name, path_list=MSVC_PATH)
 
-	# delete CL if exists. because it could contain parameters wich can change cl's behaviour rather catastrophically.
+	# delete CL if exists. because it could contain parameters which can change cl's behaviour rather catastrophically.
 	if 'CL' in env:
 		del(env['CL'])
 
@@ -334,7 +335,8 @@ def find_ifort_win32(conf):
 
 	# before setting anything, check if the compiler is really intel fortran
 	env = dict(conf.environ)
-	if path: env.update(PATH = ';'.join(path))
+	if path:
+		env.update(PATH = ';'.join(path))
 	if not conf.cmd_and_log(fc + ['/nologo', '/help'], env=env):
 		conf.fatal('not intel fortran compiler could not be identified')
 

@@ -179,7 +179,7 @@ def parse_flags(self, line, uselib_store, env=None, force_static=False, posix=No
 		elif x.startswith('-std='):
 			prefix = 'CXXFLAGS' if '++' in x else 'CFLAGS'
 			app(prefix, x)
-		elif x == '-pthread' or x.startswith('+'):
+		elif x.startswith('+') or x in ('-pthread', '-fPIC', '-fpic', '-fPIE', '-fpie'):
 			app('CFLAGS', x)
 			app('CXXFLAGS', x)
 			app('LINKFLAGS', x)
@@ -199,9 +199,9 @@ def parse_flags(self, line, uselib_store, env=None, force_static=False, posix=No
 			static = True
 		elif x == '-Wl,-Bdynamic' or x == '-Bdynamic':
 			static = False
-		elif x.startswith('-Wl'):
+		elif x.startswith('-Wl') or x in ('-rdynamic', '-pie'):
 			app('LINKFLAGS', x)
-		elif x.startswith(('-m', '-f', '-dynamic')):
+		elif x.startswith(('-m', '-f', '-dynamic', '-O')):
 			app('CFLAGS', x)
 			app('CXXFLAGS', x)
 		elif x.startswith('-bundle'):
@@ -216,6 +216,8 @@ def parse_flags(self, line, uselib_store, env=None, force_static=False, posix=No
 			app('LINKFLAGS', tmp)
 		elif x.endswith(('.a', '.so', '.dylib', '.lib')):
 			appu('LINKFLAGS', x) # not cool, #762
+		else:
+			self.to_log('Unhandled flag %r' % x)
 
 @conf
 def validate_cfg(self, kw):
@@ -686,6 +688,8 @@ def post_check(self, *k, **kw):
 		if kw.get('add_have_to_env', 1):
 			if kw.get('uselib_store'):
 				self.env[self.have_define(kw['uselib_store'])] = 1
+			elif kw['execute'] and kw.get('define_ret'):
+				self.env[define_name] = is_success
 			else:
 				self.env[define_name] = int(is_success)
 
@@ -714,7 +718,7 @@ def check(self, *k, **kw):
 	For the complete list of parameters, see :py:func:`waflib.Tools.c_config.validate_c`.
 	To force a specific compiler, pass ``compiler='c'`` or ``compiler='cxx'`` to the list of arguments
 
-	Besides build targets, complete builds can be given though a build function. All files will
+	Besides build targets, complete builds can be given through a build function. All files will
 	be written to a temporary directory::
 
 		def build(bld):
@@ -978,7 +982,8 @@ def write_config_header(self, configfile='', guard='', top=False, defines=True, 
 	:type define_prefix: string
 	:param define_prefix: prefix all the defines in the file with a particular prefix
 	"""
-	if not configfile: configfile = WAF_CONFIG_H
+	if not configfile:
+		configfile = WAF_CONFIG_H
 	waf_guard = guard or 'W_%s_WAF' % Utils.quote_define_name(configfile)
 
 	node = top and self.bldnode or self.path.get_bld()
@@ -1151,6 +1156,8 @@ def get_cc_version(conf, cc, gcc=False, icc=False, clang=False):
 			conf.env.DEST_BINFMT = 'elf'
 		elif isD('__WINNT__') or isD('__CYGWIN__') or isD('_WIN32'):
 			conf.env.DEST_BINFMT = 'pe'
+			if not conf.env.IMPLIBDIR:
+				conf.env.IMPLIBDIR = conf.env.LIBDIR # for .lib or .dll.a files
 			conf.env.LIBDIR = conf.env.BINDIR
 		elif isD('__APPLE__'):
 			conf.env.DEST_BINFMT = 'mac-o'

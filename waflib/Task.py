@@ -20,7 +20,7 @@ CRASHED = 2
 """The task execution returned a non-zero exit status"""
 
 EXCEPTION = 3
-"""An exception occured in the task execution"""
+"""An exception occurred in the task execution"""
 
 SKIPPED = 8
 """The task did not have to be executed"""
@@ -513,8 +513,10 @@ class Task(TaskBase):
 
 		src_str = ' '.join([a.path_from(a.ctx.launch_node()) for a in self.inputs])
 		tgt_str = ' '.join([a.path_from(a.ctx.launch_node()) for a in self.outputs])
-		if self.outputs: sep = ' -> '
-		else: sep = ''
+		if self.outputs:
+			sep = ' -> '
+		else:
+			sep = ''
 		return '%s: %s%s%s' % (self.__class__.__name__, src_str, sep, tgt_str)
 
 	def keyword(self):
@@ -577,8 +579,10 @@ class Task(TaskBase):
 		:param inp: input nodes
 		:type inp: node or list of nodes
 		"""
-		if isinstance(inp, list): self.inputs += inp
-		else: self.inputs.append(inp)
+		if isinstance(inp, list):
+			self.inputs += inp
+		else:
+			self.inputs.append(inp)
 
 	def set_outputs(self, out):
 		"""
@@ -587,8 +591,10 @@ class Task(TaskBase):
 		:param out: output nodes
 		:type out: node or list of nodes
 		"""
-		if isinstance(out, list): self.outputs += out
-		else: self.outputs.append(out)
+		if isinstance(out, list):
+			self.outputs += out
+		else:
+			self.outputs.append(out)
 
 	def set_run_after(self, task):
 		"""
@@ -842,9 +848,9 @@ class Task(TaskBase):
 
 		# one cache per build group
 		try:
-			dct = cache[bld.cur]
+			dct = cache[bld.current_group]
 		except KeyError:
-			dct = cache[bld.cur] = {}
+			dct = cache[bld.current_group] = {}
 			for tsk in bld.cur_tasks:
 				for x in tsk.outputs:
 					dct[x] = tsk
@@ -989,6 +995,7 @@ def compile_fun_shell(line):
 			return "%s"
 		return None
 	line = reg_act.sub(repl, line) or line
+	dvars = []
 
 	def replc(m):
 		# performs substitutions and populates dvars
@@ -1003,15 +1010,18 @@ def compile_fun_shell(line):
 			return 'env[%r]' % x
 
 	parm = []
-	dvars = []
 	app = parm.append
 	for (var, meth) in extr:
 		if var == 'SRC':
-			if meth: app('tsk.inputs%s' % meth)
-			else: app('" ".join([a.path_from(cwdx) for a in tsk.inputs])')
+			if meth:
+				app('tsk.inputs%s' % meth)
+			else:
+				app('" ".join([a.path_from(cwdx) for a in tsk.inputs])')
 		elif var == 'TGT':
-			if meth: app('tsk.outputs%s' % meth)
-			else: app('" ".join([a.path_from(cwdx) for a in tsk.outputs])')
+			if meth:
+				app('tsk.outputs%s' % meth)
+			else:
+				app('" ".join([a.path_from(cwdx) for a in tsk.outputs])')
 		elif meth:
 			if meth.startswith(':'):
 				if var not in dvars:
@@ -1039,8 +1049,10 @@ def compile_fun_shell(line):
 			if var not in dvars:
 				dvars.append(var)
 			app("p('%s')" % var)
-	if parm: parm = "%% (%s) " % (',\n\t\t'.join(parm))
-	else: parm = ''
+	if parm:
+		parm = "%% (%s) " % (',\n\t\t'.join(parm))
+	else:
+		parm = ''
 
 	c = COMPILE_TEMPLATE_SHELL % (line, parm)
 	Logs.debug('action: %s', c.strip().splitlines())
@@ -1167,7 +1179,7 @@ def compile_fun(line, shell=False):
 				if ret:
 					return ret
 			return None
-		return composed_fun, dvars
+		return composed_fun, dvars_lst
 	if shell:
 		return compile_fun_shell(line)
 	else:
@@ -1194,10 +1206,6 @@ def task_factory(name, func=None, vars=None, color='GREEN', ext_in=[], ext_out=[
 		'vars': vars or [], # function arguments are static, and this one may be modified by the class
 		'color': color,
 		'name': name,
-		'ext_in': Utils.to_list(ext_in),
-		'ext_out': Utils.to_list(ext_out),
-		'before': Utils.to_list(before),
-		'after': Utils.to_list(after),
 		'shell': shell,
 		'scan': scan,
 	}
@@ -1210,6 +1218,16 @@ def task_factory(name, func=None, vars=None, color='GREEN', ext_in=[], ext_out=[
 	cls = type(Task)(name, (Task,), params)
 	global classes
 	classes[name] = cls
+
+	if ext_in:
+		cls.ext_in = Utils.to_list(ext_in)
+	if ext_out:
+		cls.ext_out = Utils.to_list(ext_out)
+	if before:
+		cls.before = Utils.to_list(before)
+	if after:
+		cls.after = Utils.to_list(after)
+
 	return cls
 
 

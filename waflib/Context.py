@@ -11,13 +11,13 @@ from waflib import Utils, Errors, Logs
 import waflib.Node
 
 # the following 3 constants are updated on each new release (do not touch)
-HEXVERSION=0x1090700
+HEXVERSION=0x1090b00
 """Constant updated on new releases"""
 
-WAFVERSION="1.9.7"
+WAFVERSION="1.9.11"
 """Constant updated on new releases"""
 
-WAFREVISION="ade48ed52ee94965251ed072b590484d5d14352d"
+WAFREVISION="a65c7c03b7012cc6c3fb0f9c9a3be8abc06bc511"
 """Git revision when the waf version is updated"""
 
 ABI = 99
@@ -95,8 +95,8 @@ class store_context(type):
 	Context classes must provide an attribute 'cmd' representing the command name, and a function
 	attribute 'fun' representing the function name that the command uses.
 	"""
-	def __init__(cls, name, bases, dict):
-		super(store_context, cls).__init__(name, bases, dict)
+	def __init__(cls, name, bases, dct):
+		super(store_context, cls).__init__(name, bases, dct)
 		name = cls.__name__
 
 		if name in ('ctx', 'Context'):
@@ -372,7 +372,7 @@ class Context(ctx):
 
 	def cmd_and_log(self, cmd, **kw):
 		"""
-		Executes a proces and returns stdout/stderr if the execution is successful.
+		Executes a process and returns stdout/stderr if the execution is successful.
 		An exception is thrown when the exit status is non-0. In that case, both stderr and stdout
 		will be bound to the WafError object::
 
@@ -699,7 +699,8 @@ def load_tool(tool, tooldir=None, ctx=None, with_sys_path=True):
 			Context.tools[tool] = ret
 			return ret
 		else:
-			if not with_sys_path: sys.path.insert(0, waf_dir)
+			if not with_sys_path:
+				sys.path.insert(0, waf_dir)
 			try:
 				for x in ('waflib.Tools.%s', 'waflib.extras.%s', 'waflib.%s', '%s'):
 					try:
@@ -710,7 +711,8 @@ def load_tool(tool, tooldir=None, ctx=None, with_sys_path=True):
 				else: # raise an exception
 					__import__(tool)
 			finally:
-				if not with_sys_path: sys.path.remove(waf_dir)
+				if not with_sys_path:
+					sys.path.remove(waf_dir)
 			ret = sys.modules[x % tool]
 			Context.tools[tool] = ret
 			return ret

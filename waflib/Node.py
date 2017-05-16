@@ -252,9 +252,9 @@ class Node(object):
 					shutil.rmtree(self.abspath())
 				else:
 					os.remove(self.abspath())
-			except OSError as e:
+			except OSError:
 				if os.path.exists(self.abspath()):
-					raise e
+					raise
 		finally:
 			if evict:
 				self.evict()
@@ -430,10 +430,9 @@ class Node(object):
 
 		:param node: path to use as a reference
 		:type node: :py:class:`waflib.Node.Node`
-		:returns: the relative path
+		:returns: a relative path or an absolute one if that is better
 		:rtype: string
 		"""
-
 		c1 = self
 		c2 = node
 
@@ -461,13 +460,11 @@ class Node(object):
 			c2 = c2.parent
 
 		if c1.parent:
-			for i in range(up):
-				lst.append('..')
+			lst.extend(['..'] * up)
+			lst.reverse()
+			return os.sep.join(lst) or '.'
 		else:
-			if lst and not Utils.is_win32:
-				lst.append('')
-		lst.reverse()
-		return os.sep.join(lst) or '.'
+			return self.abspath()
 
 	def abspath(self):
 		"""
@@ -713,7 +710,9 @@ class Node(object):
 
 	def get_src(self):
 		"""
-		Returns the corresponding Node object in the source directory (or self if not possible)
+		Returns the corresponding Node object in the source directory (or self if already
+		under the source directory). Use this method only if the purpose is to create
+		a Node object (this is common with folders but not with files, see ticket 1937)
 
 		:rtype: :py:class:`waflib.Node.Node`
 		"""
@@ -733,7 +732,9 @@ class Node(object):
 
 	def get_bld(self):
 		"""
-		Return the corresponding Node object in the build directory (or self if not possible)
+		Return the corresponding Node object in the build directory (or self if already
+		under the build directory). Use this method only if the purpose is to create
+		a Node object (this is common with folders but not with files, see ticket 1937)
 
 		:rtype: :py:class:`waflib.Node.Node`
 		"""

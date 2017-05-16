@@ -91,6 +91,8 @@ def waf_entry_point(current_directory, version, wafdir):
 			else:
 				# check if the folder was not moved
 				for x in (env.run_dir, env.top_dir, env.out_dir):
+					if not x:
+						continue
 					if Utils.is_win32:
 						if cur == x:
 							load = True
@@ -533,6 +535,15 @@ class DistCheck(Dist):
 		self.archive()
 		self.check()
 
+	def make_distcheck_cmd(self, tmpdir):
+		cfg = []
+		if Options.options.distcheck_args:
+			cfg = shlex.split(Options.options.distcheck_args)
+		else:
+			cfg = [x for x in sys.argv if x.startswith('-')]
+		cmd = [sys.executable, sys.argv[0], 'configure', 'build', 'install', 'uninstall', '--destdir=' + tmpdir] + cfg
+		return cmd
+
 	def check(self):
 		"""
 		Creates the archive, uncompresses it and tries to build the project
@@ -546,15 +557,9 @@ class DistCheck(Dist):
 		finally:
 			t.close()
 
-		cfg = []
-
-		if Options.options.distcheck_args:
-			cfg = shlex.split(Options.options.distcheck_args)
-		else:
-			cfg = [x for x in sys.argv if x.startswith('-')]
-
 		instdir = tempfile.mkdtemp('.inst', self.get_base_name())
-		ret = Utils.subprocess.Popen([sys.executable, sys.argv[0], 'configure', 'install', 'uninstall', '--destdir=' + instdir] + cfg, cwd=self.get_base_name()).wait()
+		cmd = self.make_distcheck_cmd(instdir)
+		ret = Utils.subprocess.Popen(cmd, cwd=self.get_base_name()).wait()
 		if ret:
 			raise Errors.WafError('distcheck failed with code %r' % ret)
 

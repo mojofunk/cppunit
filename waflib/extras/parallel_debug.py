@@ -12,9 +12,11 @@ a file named pdebug.svg in the source directory::
 		...
 """
 
-import time, sys, re
-try: from Queue import Queue
-except: from queue import Queue
+import time, sys, re, threading
+try:
+	from Queue import Queue
+except:
+	from queue import Queue
 from waflib import Runner, Options, Utils, Task, Logs, Errors
 
 #import random
@@ -125,7 +127,8 @@ def compile_template(line):
 	extr = []
 	def repl(match):
 		g = match.group
-		if g('dollar'): return "$"
+		if g('dollar'):
+			return "$"
 		elif g('backslash'):
 			return "\\"
 		elif g('subst'):
@@ -214,7 +217,7 @@ def process(self):
 	except KeyError:
 		pass
 
-	self.generator.bld.producer.set_running(1, id(Utils.threading.currentThread()), self)
+	self.generator.bld.producer.set_running(1, self)
 
 	try:
 		ret = self.run()
@@ -242,7 +245,7 @@ def process(self):
 	if self.hasrun != Task.SUCCESS:
 		m.error_handler(self)
 
-	self.generator.bld.producer.set_running(-1, id(Utils.threading.currentThread()), self)
+	self.generator.bld.producer.set_running(-1, self)
 
 Task.TaskBase.process_back = Task.TaskBase.process
 Task.TaskBase.process = process
@@ -260,8 +263,26 @@ def do_start(self):
 		make_picture(self)
 Runner.Parallel.start = do_start
 
-def set_running(self, by, i, tsk):
-	self.taskinfo.put( (i, id(tsk), time.time(), tsk.__class__.__name__, self.processed, self.count, by)  )
+lock_running = threading.Lock()
+def set_running(self, by, tsk):
+	with lock_running:
+		try:
+			cache = self.lock_cache
+		except AttributeError:
+			cache = self.lock_cache = {}
+
+		i = 0
+		if by > 0:
+			vals = cache.values()
+			for i in range(self.numjobs):
+				if i not in vals:
+					cache[tsk] = i
+					break
+		else:
+			i = cache[tsk]
+			del cache[tsk]
+
+		self.taskinfo.put( (i, id(tsk), time.time(), tsk.__class__.__name__, self.processed, self.count, by)  )
 Runner.Parallel.set_running = set_running
 
 def name2class(name):

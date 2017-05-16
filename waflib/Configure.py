@@ -181,11 +181,11 @@ class ConfigurationContext(Context.Context):
 		env.files = self.files
 		env.environ = dict(self.environ)
 
-		if not self.env.NO_LOCK_IN_RUN and not getattr(Options.options, 'no_lock_in_run'):
+		if not (self.env.NO_LOCK_IN_RUN or env.environ.get('NO_LOCK_IN_RUN') or getattr(Options.options, 'no_lock_in_run')):
 			env.store(os.path.join(Context.run_dir, Options.lockfile))
-		if not self.env.NO_LOCK_IN_TOP and not getattr(Options.options, 'no_lock_in_top'):
+		if not (self.env.NO_LOCK_IN_TOP or env.environ.get('NO_LOCK_IN_TOP') or getattr(Options.options, 'no_lock_in_top')):
 			env.store(os.path.join(Context.top_dir, Options.lockfile))
-		if not self.env.NO_LOCK_IN_OUT and not getattr(Options.options, 'no_lock_in_out'):
+		if not (self.env.NO_LOCK_IN_OUT or env.environ.get('NO_LOCK_IN_OUT') or getattr(Options.options, 'no_lock_in_out')):
 			env.store(os.path.join(Context.out_dir, Options.lockfile))
 
 	def prepare_env(self, env):
@@ -238,7 +238,8 @@ class ConfigurationContext(Context.Context):
 		"""
 
 		tools = Utils.to_list(input)
-		if tooldir: tooldir = Utils.to_list(tooldir)
+		if tooldir:
+			tooldir = Utils.to_list(tooldir)
 		for tool in tools:
 			# avoid loading the same tool more than once with the same functions
 			# used by composite projects
@@ -265,8 +266,10 @@ class ConfigurationContext(Context.Context):
 			else:
 				func = getattr(module, 'configure', None)
 				if func:
-					if type(func) is type(Utils.readf): func(self)
-					else: self.eval_rules(func)
+					if type(func) is type(Utils.readf):
+						func(self)
+					else:
+						self.eval_rules(func)
 
 			self.tools.append({'tool':tool, 'tooldir':tooldir, 'funs':funs})
 
@@ -415,7 +418,7 @@ def find_program(self, filename, **kw):
 
 	:param path_list: paths to use for searching
 	:type param_list: list of string
-	:param var: store the result to conf.env[var], by default use filename.upper()
+	:param var: store the result to conf.env[var] where var defaults to filename.upper() if not provided; the result is stored as a list of strings
 	:type var: string
 	:param value: obtain the program from the value passed exclusively
 	:type value: list or string (list is preferred)
@@ -449,7 +452,7 @@ def find_program(self, filename, **kw):
 	if kw.get('value'):
 		# user-provided in command-line options and passed to find_program
 		ret = self.cmd_to_list(kw['value'])
-	elif var in environ:
+	elif environ.get(var):
 		# user-provided in the os environment
 		ret = self.cmd_to_list(environ[var])
 	elif self.env[var]:
@@ -565,7 +568,7 @@ def run_build(self, *k, **kw):
 	if not os.path.exists(bdir):
 		os.makedirs(bdir)
 
-	cls_name = getattr(self, 'run_build_cls', 'build')
+	cls_name = kw.get('run_build_cls') or getattr(self, 'run_build_cls', 'build')
 	self.test_bld = bld = Context.create_context(cls_name, top_dir=dir, out_dir=bdir)
 	bld.init_dirs()
 	bld.progress_bar = 0
@@ -635,6 +638,4 @@ def test(self, *k, **kw):
 	else:
 		self.end_msg(self.ret_msg(kw['okmsg'], kw), **kw)
 	return ret
-
-
 

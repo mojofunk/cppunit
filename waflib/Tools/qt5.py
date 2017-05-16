@@ -70,7 +70,7 @@ except ImportError:
 else:
 	has_xml = True
 
-import os, sys
+import os, sys, re
 from waflib.Tools import cxx
 from waflib import Task, Utils, Options, Errors, Context
 from waflib.TaskGen import feature, after_method, extension, before_method
@@ -96,72 +96,6 @@ EXT_QT5 = ['.cpp', '.cc', '.cxx', '.C']
 """
 File extensions of C++ files that may require a .moc processing
 """
-
-QT5_LIBS = '''
-qtmain
-Qt53DCore
-Qt53DExtras
-Qt53DInput
-Qt53DLogic
-Qt53DQuickExtras
-Qt53DQuickInput
-Qt53DQuickRender
-Qt53DQuick.so
-Qt53DRender
-Qt5Bluetooth
-Qt5Charts
-Qt5CLucene
-Qt5Concurrent
-Qt5Core
-Qt5DataVisualization
-Qt5DBus
-Qt5Declarative
-Qt5DesignerComponents
-Qt5Designer
-Qt5EglDeviceIntegration
-Qt5Gamepad
-Qt5Gui
-Qt5Help
-Qt5Location
-Qt5MultimediaQuick_p
-Qt5Multimedia
-Qt5MultimediaWidgets
-Qt5Network
-Qt5Nfc
-Qt5OpenGL
-Qt5Positioning
-Qt5PrintSupport
-Qt5Purchasing
-Qt5Qml
-Qt5QuickControls2
-Qt5QuickParticles
-Qt5Quick
-Qt5QuickTemplates2
-Qt5QuickTest
-Qt5QuickWidgets
-Qt5Script
-Qt5ScriptTools
-Qt5Scxml
-Qt5Sensors
-Qt5SerialBus
-Qt5SerialPort
-Qt5Sql
-Qt5Svg
-Qt5Test
-Qt5WebChannel
-Qt5WebEngineCore
-Qt5WebEngine
-Qt5WebEngineWidgets
-Qt5WebKit
-Qt5WebKitWidgets
-Qt5WebSockets
-Qt5WebView
-Qt5Widgets
-Qt5WinExtras
-Qt5X11Extras
-Qt5XcbQpa
-Qt5XmlPatterns
-Qt5Xml'''
 
 class qxx(Task.classes['cxx']):
 	"""
@@ -296,6 +230,7 @@ class XMLHandler(ContentHandler):
 	Parses ``.qrc`` files
 	"""
 	def __init__(self):
+		ContentHandler.__init__(self)
 		self.buf = []
 		self.files = []
 	def startElement(self, name, attrs):
@@ -394,7 +329,8 @@ def apply_qt5(self):
 
 	lst = []
 	for flag in self.to_list(self.env.CXXFLAGS):
-		if len(flag) < 2: continue
+		if len(flag) < 2:
+			continue
 		f = flag[0:2]
 		if f in ('-D', '-I', '/D', '/I'):
 			if (f[0] == '/'):
@@ -441,8 +377,10 @@ class rcc(Task.Task):
 		root = self.inputs[0].parent
 		for x in curHandler.files:
 			nd = root.find_resource(x)
-			if nd: nodes.append(nd)
-			else: names.append(x)
+			if nd:
+				nodes.append(nd)
+			else:
+				names.append(x)
 		return (nodes, names)
 
 class moc(Task.Task):
@@ -487,6 +425,7 @@ def configure(self):
 	The detection uses the program ``pkg-config`` through :py:func:`waflib.Tools.config_c.check_cfg`
 	"""
 	self.find_qt5_binaries()
+	self.set_qt5_libs_dir()
 	self.set_qt5_libs_to_check()
 	self.set_qt5_defines()
 	self.find_qt5_libraries()
@@ -517,7 +456,6 @@ def configure(self):
 		self.fatal('Could not build a simple Qt application')
 
 	# FreeBSD does not add /usr/local/lib and the pkg-config files do not provide it either :-/
-	from waflib import Utils
 	if Utils.unversioned_sys_platform() == 'freebsd':
 		frag = '#include <QApplication>\nint main(int argc, char **argv) { QApplication app(argc, argv); return NULL != (void*) (&app);}\n'
 		try:
@@ -648,6 +586,19 @@ def find_qt5_binaries(self):
 	env.MOCDEFINES_ST = '-D%s'
 
 @conf
+def set_qt5_libs_dir(self):
+	env = self.env
+	qtlibs = getattr(Options.options, 'qtlibs', None) or self.environ.get('QT5_LIBDIR')
+	if not qtlibs:
+		try:
+			qtlibs = self.cmd_and_log(env.QMAKE + ['-query', 'QT_INSTALL_LIBS']).strip()
+		except Errors.WafError:
+			qtdir = self.cmd_and_log(env.QMAKE + ['-query', 'QT_INSTALL_PREFIX']).strip()
+			qtlibs = os.path.join(qtdir, 'lib')
+	self.msg('Found the Qt5 libraries in', qtlibs)
+	env.QTLIBS = qtlibs
+
+@conf
 def find_single_qt5_lib(self, name, uselib, qtlibs, qtincludes, force_static):
 	env = self.env
 	if force_static:
@@ -682,14 +633,6 @@ def find_single_qt5_lib(self, name, uselib, qtlibs, qtincludes, force_static):
 @conf
 def find_qt5_libraries(self):
 	env = self.env
-	qtlibs = getattr(Options.options, 'qtlibs', None) or self.environ.get('QT5_LIBDIR')
-	if not qtlibs:
-		try:
-			qtlibs = self.cmd_and_log(env.QMAKE + ['-query', 'QT_INSTALL_LIBS']).strip()
-		except Errors.WafError:
-			qtdir = self.cmd_and_log(env.QMAKE + ['-query', 'QT_INSTALL_PREFIX']).strip()
-			qtlibs = os.path.join(qtdir, 'lib')
-	self.msg('Found the Qt5 libraries in', qtlibs)
 
 	qtincludes =  self.environ.get('QT5_INCLUDES') or self.cmd_and_log(env.QMAKE + ['-query', 'QT_INSTALL_HEADERS']).strip()
 	force_static = self.environ.get('QT5_FORCE_STATIC')
@@ -702,24 +645,27 @@ def find_qt5_libraries(self):
 			uselib = i.upper()
 			if Utils.unversioned_sys_platform() == 'darwin':
 				# Since at least qt 4.7.3 each library locates in separate directory
-				frameworkName = i + '.framework'
-				qtDynamicLib = os.path.join(qtlibs, frameworkName, i)
+				fwk = i.replace('Qt5', 'Qt')
+				frameworkName = fwk + '.framework'
+
+				qtDynamicLib = os.path.join(env.QTLIBS, frameworkName, fwk)
 				if os.path.exists(qtDynamicLib):
-					env.append_unique('FRAMEWORK_' + uselib, i)
+					env.append_unique('FRAMEWORK_' + uselib, fwk)
+					env.append_unique('FRAMEWORKPATH_' + uselib, env.QTLIBS)
 					self.msg('Checking for %s' % i, qtDynamicLib, 'GREEN')
 				else:
 					self.msg('Checking for %s' % i, False, 'YELLOW')
-				env.append_unique('INCLUDES_' + uselib, os.path.join(qtlibs, frameworkName, 'Headers'))
+				env.append_unique('INCLUDES_' + uselib, os.path.join(env.QTLIBS, frameworkName, 'Headers'))
 			else:
 				for j in ('', 'd'):
 					k = '_DEBUG' if j == 'd' else ''
-					ret = self.find_single_qt5_lib(i + j, uselib + k, qtlibs, qtincludes, force_static)
+					ret = self.find_single_qt5_lib(i + j, uselib + k, env.QTLIBS, qtincludes, force_static)
 					if not force_static and not ret:
-						ret = self.find_single_qt5_lib(i + j, uselib + k, qtlibs, qtincludes, True)
+						ret = self.find_single_qt5_lib(i + j, uselib + k, env.QTLIBS, qtincludes, True)
 					self.msg('Checking for %s' % (i + j), ret, 'GREEN' if ret else 'YELLOW')
 	else:
 		path = '%s:%s:%s/pkgconfig:/usr/lib/qt5/lib/pkgconfig:/opt/qt5/lib/pkgconfig:/usr/lib/qt5/lib:/opt/qt5/lib' % (
-			self.environ.get('PKG_CONFIG_PATH', ''), qtlibs, qtlibs)
+			self.environ.get('PKG_CONFIG_PATH', ''), env.QTLIBS, env.QTLIBS)
 		for i in self.qt5_vars_debug + self.qt5_vars:
 			self.check_cfg(package=i, args='--cflags --libs', mandatory=False, force_static=force_static, pkg_config_path=path)
 
@@ -758,7 +704,7 @@ def add_qt5_rpath(self):
 		def process_rpath(vars_, coreval):
 			for d in vars_:
 				var = d.upper()
-				value = env['LIBPATH_'+var]
+				value = env['LIBPATH_' + var]
 				if value:
 					core = env[coreval]
 					accu = []
@@ -767,15 +713,35 @@ def add_qt5_rpath(self):
 							if lib in core:
 								continue
 						accu.append('-Wl,--rpath='+lib)
-					env['RPATH_'+var] = accu
+					env['RPATH_' + var] = accu
 		process_rpath(self.qt5_vars,       'LIBPATH_QTCORE')
 		process_rpath(self.qt5_vars_debug, 'LIBPATH_QTCORE_DEBUG')
 
 @conf
 def set_qt5_libs_to_check(self):
-	if not hasattr(self, 'qt5_vars'):
-		self.qt5_vars = QT5_LIBS
-	self.qt5_vars = Utils.to_list(self.qt5_vars)
+	self.qt5_vars = Utils.to_list(getattr(self, 'qt5_vars', []))
+	if not self.qt5_vars:
+		dirlst = Utils.listdir(self.env.QTLIBS)
+
+		pat = self.env.cxxshlib_PATTERN
+		if Utils.is_win32:
+			pat = pat.replace('.dll', '.lib')
+		if self.environ.get('QT5_FORCE_STATIC'):
+			pat = self.env.cxxstlib_PATTERN
+		if Utils.unversioned_sys_platform() == 'darwin':
+			pat = "%s\.framework"
+		re_qt = re.compile(pat%'Qt5?(?P<name>.*)'+'$')
+		for x in dirlst:
+			m = re_qt.match(x)
+			if m:
+				self.qt5_vars.append("Qt5%s" % m.group('name'))
+		if not self.qt5_vars:
+			self.fatal('cannot find any Qt5 library (%r)' % self.env.QTLIBS)
+
+	qtextralibs = getattr(Options.options, 'qtextralibs', None)
+	if qtextralibs:
+		self.qt5_vars.extend(qtextralibs.split(','))
+
 	if not hasattr(self, 'qt5_vars_debug'):
 		self.qt5_vars_debug = [a + '_DEBUG' for a in self.qt5_vars]
 	self.qt5_vars_debug = Utils.to_list(self.qt5_vars_debug)
@@ -798,4 +764,5 @@ def options(opt):
 		opt.add_option('--'+i, type='string', default='', dest=i)
 
 	opt.add_option('--translate', action='store_true', help='collect translation strings', dest='trans_qt5', default=False)
+	opt.add_option('--qtextralibs', type='string', default='', dest='qtextralibs', help='additional qt libraries on the system to add to default ones, comma separated')
 

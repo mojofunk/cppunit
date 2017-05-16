@@ -143,6 +143,12 @@ class BuildContext(Context.Context):
 			if not hasattr(self, v):
 				setattr(self, v, {})
 
+	def set_cur(self, cur):
+		self.current_group = cur
+	def get_cur(self):
+		return self.current_group
+	cur = property(get_cur, set_cur)
+
 	def get_variant_dir(self):
 		"""Getter for the variant_dir attribute"""
 		if not self.variant:
@@ -296,7 +302,8 @@ class BuildContext(Context.Context):
 			pass
 		else:
 			if env.version < Context.HEXVERSION:
-				raise Errors.WafError('Version mismatch! reconfigure the project')
+				raise Errors.WafError('Project was configured with a different version of Waf, please reconfigure it')
+
 			for t in env.tools:
 				self.setup(**t)
 
@@ -393,11 +400,13 @@ class BuildContext(Context.Context):
 		:param funs: unused variable
 		"""
 		if isinstance(tool, list):
-			for i in tool: self.setup(i, tooldir)
+			for i in tool:
+				self.setup(i, tooldir)
 			return
 
 		module = Context.load_tool(tool, tooldir)
-		if hasattr(module, "setup"): module.setup(self)
+		if hasattr(module, "setup"):
+			module.setup(self)
 
 	def get_env(self):
 		"""Getter for the env property"""
@@ -537,7 +546,8 @@ class BuildContext(Context.Context):
 		right = '][%s%s%s]' % (col1, self.timer, col2)
 
 		cols = Logs.get_term_cols() - len(left) - len(right) + 2*len(col1) + 2*len(col2)
-		if cols < 7: cols = 7
+		if cols < 7:
+			cols = 7
 
 		ratio = ((cols * idx)//total) - 1
 
@@ -739,11 +749,11 @@ class BuildContext(Context.Context):
 
 	def post_group(self):
 		"""
-		Post task generators from the group indexed by self.cur; used internally
+		Post task generators from the group indexed by self.current_group; used internally
 		by :py:meth:`waflib.Build.BuildContext.get_build_iterator`
 		"""
 		if self.targets == '*':
-			for tg in self.groups[self.cur]:
+			for tg in self.groups[self.current_group]:
 				try:
 					f = tg.post
 				except AttributeError:
@@ -751,8 +761,8 @@ class BuildContext(Context.Context):
 				else:
 					f()
 		elif self.targets:
-			if self.cur < self._min_grp:
-				for tg in self.groups[self.cur]:
+			if self.current_group < self._min_grp:
+				for tg in self.groups[self.current_group]:
 					try:
 						f = tg.post
 					except AttributeError:
@@ -770,7 +780,7 @@ class BuildContext(Context.Context):
 			elif not ln.is_child_of(self.srcnode):
 				Logs.warn('CWD %s is not under %s, forcing --targets=* (run distclean?)', ln.abspath(), self.srcnode.abspath())
 				ln = self.srcnode
-			for tg in self.groups[self.cur]:
+			for tg in self.groups[self.current_group]:
 				try:
 					f = tg.post
 				except AttributeError:
@@ -798,28 +808,28 @@ class BuildContext(Context.Context):
 		"""
 		Creates a Python generator object that returns lists of tasks that may be processed in parallel.
 
-		:return: tasks which can be executed immediatly
+		:return: tasks which can be executed immediately
 		:rtype: generator returning lists of :py:class:`waflib.Task.TaskBase`
 		"""
-		self.cur = 0
+		self.current_group = 0
 
 		if self.targets and self.targets != '*':
 			(self._min_grp, self._exact_tg) = self.get_targets()
 
 		global lazy_post
 		if self.post_mode != POST_LAZY:
-			while self.cur < len(self.groups):
+			while self.current_group < len(self.groups):
 				self.post_group()
-				self.cur += 1
-			self.cur = 0
+				self.current_group += 1
+			self.current_group = 0
 
-		while self.cur < len(self.groups):
+		while self.current_group < len(self.groups):
 			# first post the task generators for the group
 			if self.post_mode != POST_AT_ONCE:
 				self.post_group()
 
 			# then extract the tasks
-			tasks = self.get_tasks_group(self.cur)
+			tasks = self.get_tasks_group(self.current_group)
 			# if the constraints are set properly (ext_in/ext_out, before/after)
 			# the call to set_file_constraints may be removed (can be a 15% penalty on no-op rebuilds)
 			# (but leave set_file_constraints for the installation step)
@@ -830,12 +840,12 @@ class BuildContext(Context.Context):
 			Task.set_precedence_constraints(tasks)
 
 			self.cur_tasks = tasks
-			self.cur += 1
-			if not tasks: # return something else the build will stop
-				continue
-			yield tasks
+			if tasks:
+				yield tasks
+			self.current_group += 1
 
 		while 1:
+			# the build stops once there are no tasks to process
 			yield []
 
 	def install_files(self, dest, files, **kw):
@@ -1334,6 +1344,10 @@ class ListContext(BuildContext):
 
 	def execute(self):
 		"""
+		In addition to printing the name of each build target,
+		a description column will include text for each task
+		generator which has a "description" field set.
+
 		See :py:func:`waflib.Build.BuildContext.execute`.
 		"""
 		self.restore()
@@ -1361,8 +1375,22 @@ class ListContext(BuildContext):
 		except Errors.WafError:
 			pass
 
-		for k in sorted(self.task_gen_cache_names.keys()):
-			Logs.pprint('GREEN', k)
+		targets = sorted(self.task_gen_cache_names)
+
+		# figure out how much to left-justify, for largest target name
+		line_just = max(len(t) for t in targets) if targets else 0
+
+		for target in targets:
+			tgen = self.task_gen_cache_names[target]
+
+			# Support displaying the description for the target
+			# if it was set on the tgen
+			descript = getattr(tgen, 'description', '')
+			if descript:
+				target = target.ljust(line_just)
+				descript = ': %s' % descript
+
+			Logs.pprint('GREEN', target, label=descript)
 
 class StepContext(BuildContext):
 	'''executes tasks in a step-by-step fashion, for debugging'''
