@@ -77,7 +77,6 @@ def build(bld):
         bld.shlib(
             includes=['include'],
             source=sources,
-            #install_path='${BINDIR}',
             target='cppunit',
             name='CPPUNIT_SHARED',
             vnum='0.0.2'
@@ -87,7 +86,6 @@ def build(bld):
         bld.stlib(
             includes=['include'],
             source=sources,
-            #install_path='${PREFIX}/lib',
             target='cppunit-static',
             name='CPPUNIT_STATIC',
             vnum='0.0.2'
