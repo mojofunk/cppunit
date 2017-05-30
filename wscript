@@ -26,10 +26,10 @@ def options(opt):
     opt.load('compiler_c')
     opt.load('compiler_cxx')
     opt.load('gnu_dirs')
-    opt.load('toolset', tooldir='waftools')
-    opt.load('compiler_flags', tooldir='waftools')
-    opt.load('library', tooldir='waftools')
-    opt.load('tests', tooldir='waftools')
+    opt.load('toolset')
+    opt.load('compiler_flags')
+    opt.load('library')
+    opt.load('tests')
 
 
 def display_config(conf):
@@ -46,12 +46,12 @@ def display_config(conf):
 
 def configure(conf):
     conf.load('gnu_dirs')
-    conf.load('toolset', tooldir='waftools')
-    conf.load('host_system', tooldir='waftools')
-    conf.load('compiler_flags', tooldir='waftools')
-    conf.load('library', tooldir='waftools')
-    conf.load('tests', tooldir='waftools')
-    conf.load('pkgconfig', tooldir='waftools')
+    conf.load('toolset')
+    conf.load('host_system')
+    conf.load('compiler_flags')
+    conf.load('library')
+    conf.load('tests')
+    conf.load('pkgconfig')
 
     display_config(conf)
 
@@ -77,9 +77,7 @@ def build(bld):
         bld.shlib(
             includes=['include'],
             source=sources,
-            #uselib=uselibs,
-            #defines=use_defines,
-            install_path='${BINDIR}',
+            #install_path='${BINDIR}',
             target='cppunit',
             name='CPPUNIT_SHARED',
             vnum='0.0.2'
@@ -89,10 +87,8 @@ def build(bld):
         bld.stlib(
             includes=['include'],
             source=sources,
-            #uselib=uselibs,
-            #defines=use_defines,
-            install_path='${PREFIX}/lib',
-            target='cppunit',
+            #install_path='${PREFIX}/lib',
+            target='cppunit-static',
             name='CPPUNIT_STATIC',
             vnum='0.0.2'
         )
@@ -104,7 +100,6 @@ def build(bld):
         source='cppunit.pc.in',
         target='cppunit.pc',
         install_path='${PREFIX}/lib/pkgconfig',
-        dict={'prefix': bld.env.PREFIX}
     )
 
     if bld.env.RUN_TESTS:
