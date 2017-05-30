@@ -86,7 +86,7 @@ def build(bld):
         bld.stlib(
             includes=['include'],
             source=sources,
-            target='cppunit-static',
+            target='cppunit',
             name='CPPUNIT_STATIC',
             vnum='0.0.2'
         )
