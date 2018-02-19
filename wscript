@@ -50,7 +50,7 @@ def configure(conf):
 
 
 def build(bld):
-    includes = bld.path.ant_glob('includes/*')
+    includes = bld.path.ant_glob('include/cppunit/*')
 
     windows_sources = '''
     src/cppunit/DllMain.cpp
@@ -67,24 +67,34 @@ def build(bld):
         sources = bld.path.ant_glob('src/cppunit/*.cpp', excl=windows_sources)
 
     if bld.env.ENABLE_SHARED != False:
-        bld.shlib(
+        bld(features='c cxxshlib',
             includes=['include'],
             source=sources,
             target='cppunit',
+            defines=['WIN32', 'CPPUNIT_BUILD_DLL'],
             name='CPPUNIT_SHARED',
-            vnum='0.0.2'
+            vnum=VERSION
         )
+
+    staticlib_name = 'cppunit'
+
+    if bld.env.ENABLE_SHARED and bld.env.ENABLE_STATIC:
+        if bld.env.CC_NAME == 'msvc':
+            # Can't build shared and static with same name to due to
+            # conflict with cppunit.lib(import library) and
+            # cppunit.lib(static library), so use a different name
+            staticlib_name = 'cppunit-static'
 
     if bld.env.ENABLE_STATIC != False:
-        bld.stlib(
+        bld(features='c cxxstlib',
             includes=['include'],
             source=sources,
-            target='cppunit',
+            target=staticlib_name,
             name='CPPUNIT_STATIC',
-            vnum='0.0.2'
+            vnum=VERSION
         )
 
-    bld.install_files('${PREFIX}/include', includes)
+    bld.install_files('${PREFIX}/include/cppunit', includes)
 
     bld(
         features='subst',
