@@ -40,5 +40,5 @@ examples/hierarchy/hierarchy
 examples/money/MoneyApp
 src/DllPlugInTester/DllPlugInTesterTest
 build/
-waf-build/
 *.waf*
+*waf-*
