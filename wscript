@@ -111,5 +111,5 @@ def build(bld):
         features='subst',
         source='cppunit.pc.in',
         target='cppunit.pc',
-        install_path='${PREFIX}/lib/pkgconfig',
+        install_path='${LIBDIR}/pkgconfig',
     )
