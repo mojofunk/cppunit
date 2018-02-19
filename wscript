@@ -26,32 +26,25 @@ def options(opt):
     opt.load('compiler_c')
     opt.load('compiler_cxx')
     opt.load('gnu_dirs')
-    opt.load('toolset')
-    opt.load('compiler_flags')
+    opt.load('build_type')
     opt.load('library')
-    opt.load('tests')
 
 
 def display_config(conf):
-    Logs.info('Host System              : %s' % conf.env.HOST_SYSTEM)
-    Logs.info('Toolset                  : %s' % conf.env.TOOLSET)
-    Logs.info('C compiler flags         : %s' % conf.env.CFLAGS)
-    Logs.info('C++ compiler flags       : %s' % conf.env.CXXFLAGS)
-    Logs.info('Linker flags             : %s' % conf.env.LINKFLAGS)
-    Logs.info('Enable shared            : %s' % conf.env.ENABLE_SHARED)
-    Logs.info('Enable static            : %s' % conf.env.ENABLE_STATIC)
-    Logs.info('Build tests              : %s' % conf.env.WITH_TESTS)
-    Logs.info('Run tests                : %s' % conf.env.RUN_TESTS)
+    conf.msg('Host System', conf.env.DEST_OS)
+    conf.msg('C compiler flags', conf.env.CFLAGS)
+    conf.msg('C++ compiler flags', conf.env.CXXFLAGS)
+    conf.msg('Linker flags', conf.env.LINKFLAGS)
+    conf.msg('Enable shared', str(conf.env.ENABLE_SHARED))
+    conf.msg('Enable static', str(conf.env.ENABLE_STATIC))
 
 
 def configure(conf):
+    conf.load('compiler_c')
+    conf.load('compiler_cxx')
     conf.load('gnu_dirs')
-    conf.load('toolset')
-    conf.load('host_system')
-    conf.load('compiler_flags')
+    conf.load('build_type')
     conf.load('library')
-    conf.load('tests')
-    conf.load('pkgconfig')
 
     display_config(conf)
 
@@ -68,12 +61,12 @@ def build(bld):
     src/cppunit/UnixDynamicLibraryManager.cpp
     '''
 
-    if bld.env.HOST_SYSTEM_WINDOWS:
+    if bld.env.DEST_OS == 'win32':
         sources = bld.path.ant_glob('src/cppunit/*.cpp', excl=unix_sources)
     else:
         sources = bld.path.ant_glob('src/cppunit/*.cpp', excl=windows_sources)
 
-    if bld.env.ENABLE_SHARED:
+    if bld.env.ENABLE_SHARED != False:
         bld.shlib(
             includes=['include'],
             source=sources,
@@ -82,7 +75,7 @@ def build(bld):
             vnum='0.0.2'
         )
 
-    if bld.env.ENABLE_STATIC:
+    if bld.env.ENABLE_STATIC != False:
         bld.stlib(
             includes=['include'],
             source=sources,
@@ -99,10 +92,3 @@ def build(bld):
         target='cppunit.pc',
         install_path='${PREFIX}/lib/pkgconfig',
     )
-
-    if bld.env.RUN_TESTS:
-        bld.add_post_fun(test)
-
-
-def test(bld):
-    pass
