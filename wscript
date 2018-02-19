@@ -46,13 +46,18 @@ def configure(conf):
     conf.load('build_type')
     conf.load('library')
 
-    conf.check(header_name='dlfcn.h', define='CPPUNIT_HAVE_DLFCN_H')
+    conf.check(header_name='dlfcn.h', define='CPPUNIT_HAVE_DLFCN_H', mandatory=False)
+
+    if conf.check_cxx(header_name='sstream'):
+        conf.define("CPPUNIT_HAVE_SSTREAM", 1)
+
 
     conf.define("CPPUNIT_HAVE_NAMESPACES", 1)
+    conf.define("CPPUNIT_PACKAGE", "cppunit")
 
     display_config(conf)
 
-    conf.write_config_header('config-auto.h')
+    conf.write_config_header('include/cppunit/config-auto.h')
 
 def build(bld):
     includes = bld.path.ant_glob('include/cppunit/*')
@@ -105,7 +110,7 @@ def build(bld):
         )
 
     bld.install_files('${PREFIX}/include/cppunit', includes)
-    bld.install_files('${PREFIX}/include/cppunit', ['config-auto.h'])
+    bld.install_files('${PREFIX}/include/cppunit', ['include/cppunit/config-auto.h'])
 
     bld(
         features='subst',
