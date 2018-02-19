@@ -46,8 +46,13 @@ def configure(conf):
     conf.load('build_type')
     conf.load('library')
 
+    conf.check(header_name='dlfcn.h', define='CPPUNIT_HAVE_DLFCN_H')
+
+    conf.define("CPPUNIT_HAVE_NAMESPACES", 1)
+
     display_config(conf)
 
+    conf.write_config_header('config-auto.h')
 
 def build(bld):
     includes = bld.path.ant_glob('include/cppunit/*')
@@ -61,17 +66,22 @@ def build(bld):
     src/cppunit/UnixDynamicLibraryManager.cpp
     '''
 
+    defines = []
+
     if bld.env.DEST_OS == 'win32':
         sources = bld.path.ant_glob('src/cppunit/*.cpp', excl=unix_sources)
+        defines = ['WIN32', 'CPPUNIT_BUILD_DLL']
     else:
         sources = bld.path.ant_glob('src/cppunit/*.cpp', excl=windows_sources)
+        bld.env.CXXFLAGS += ['-fPIC']
+
 
     if bld.env.ENABLE_SHARED != False:
         bld(features='c cxxshlib',
             includes=['include'],
             source=sources,
             target='cppunit',
-            defines=['WIN32', 'CPPUNIT_BUILD_DLL'],
+            defines=defines,
             name='CPPUNIT_SHARED',
             vnum=VERSION
         )
@@ -95,6 +105,7 @@ def build(bld):
         )
 
     bld.install_files('${PREFIX}/include/cppunit', includes)
+    bld.install_files('${PREFIX}/include/cppunit', ['config-auto.h'])
 
     bld(
         features='subst',
