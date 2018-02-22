@@ -9,11 +9,13 @@ import re
 
 from waflib import Logs
 
-MAJOR_VERSION = '1'
-MINOR_VERSION = '13'
-MICRO_VERSION = '0'
+CPPUNIT_MAJOR_VERSION = '1'
+CPPUNIT_MINOR_VERSION = '13'
+CPPUNIT_MICRO_VERSION = '0'
+CPPUNIT_VERSION = '%s.%s.%s' % (CPPUNIT_MAJOR_VERSION, CPPUNIT_MINOR_VERSION, CPPUNIT_MICRO_VERSION)
+
 # these are required by waf for waf dist
-VERSION = MAJOR_VERSION + '.' + MINOR_VERSION + '.' + MICRO_VERSION
+VERSION = CPPUNIT_VERSION
 APPNAME = 'cppunit'
 
 # these variables are mandatory ('/' are converted automatically)
@@ -87,7 +89,7 @@ def build(bld):
             target='cppunit',
             defines=defines,
             name='CPPUNIT_SHARED',
-            vnum=VERSION
+            vnum=CPPUNIT_VERSION
         )
 
     staticlib_name = 'cppunit'
@@ -105,12 +107,13 @@ def build(bld):
             source=sources,
             target=staticlib_name,
             name='CPPUNIT_STATIC',
-            vnum=VERSION
+            vnum=CPPUNIT_VERSION
         )
 
     bld.install_files('${PREFIX}/include/cppunit', includes)
     bld.install_files('${PREFIX}/include/cppunit', ['include/cppunit/config-auto.h'])
 
+    bld.env.CPPUNIT_VERSION = CPPUNIT_VERSION
     bld(
         features='subst',
         source='cppunit.pc.in',
