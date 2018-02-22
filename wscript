@@ -78,11 +78,10 @@ def build(bld):
         defines = ['WIN32', 'CPPUNIT_BUILD_DLL']
     else:
         sources = bld.path.ant_glob('src/cppunit/*.cpp', excl=windows_sources)
-        bld.env.CXXFLAGS += ['-fPIC']
 
 
     if bld.env.ENABLE_SHARED != False:
-        bld(features='c cxxshlib',
+        bld(features='cxx cxxshlib',
             includes=['include'],
             source=sources,
             target='cppunit',
@@ -101,7 +100,7 @@ def build(bld):
             staticlib_name = 'cppunit-static'
 
     if bld.env.ENABLE_STATIC != False:
-        bld(features='c cxxstlib',
+        bld(features='cxx cxxstlib',
             includes=['include'],
             source=sources,
             target=staticlib_name,
