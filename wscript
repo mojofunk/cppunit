@@ -62,8 +62,6 @@ def configure(conf):
     conf.write_config_header('include/cppunit/config-auto.h')
 
 def build(bld):
-    includes = bld.path.ant_glob('include/cppunit/*')
-
     windows_sources = '''
     src/cppunit/DllMain.cpp
     src/cppunit/Win32DynamicLibraryManager.cpp
@@ -110,7 +108,10 @@ def build(bld):
             vnum=CPPUNIT_VERSION
         )
 
-    bld.install_files('${PREFIX}/include/cppunit', includes)
+    # There is an assumption in the name of the includedir here
+    includes = bld.path.ant_glob('include/cppunit/**/*.h')
+    bld.install_files('${PREFIX}', includes, relative_trick=True)
+
     bld.install_files('${PREFIX}/include/cppunit', ['include/cppunit/config-auto.h'])
 
     bld.env.CPPUNIT_VERSION = CPPUNIT_VERSION
